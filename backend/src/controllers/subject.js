@@ -119,7 +119,7 @@ const bulkCreateSubjects = async (req, res, next) => {
             failed: data.length - newSubjects.length
         })
     }catch(err){
-
+        next(err)
     }
 }
 

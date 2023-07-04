@@ -27,14 +27,12 @@ const register = async (req, res, next) => {
             });
             let newPerson
             if(permissionLevel === 0){
-                newPerson = await Student.create({
-                    ...info,
-                    UserId: newUser.id
+                newPerson = await newUser.createStudent({
+                    ...info
                 })
             }else{
-                newPerson = await Lecture.create({
-                    ...info,
-                    UserId: newUser.id
+                newPerson = await newUser.createLecture({
+                    ...info
                 })
             }
             res.status(201).send({newUser, newPerson})
@@ -76,7 +74,7 @@ const bulkRegister = async (req, res, next) => {
                 })
                 return newStudent
             }catch(err){
-                return 
+                return undefined;
             }
         }))
 

@@ -6,8 +6,8 @@ const createTestRoom = async(req, res, next) => {
     try{
         const {number, building, maximum, isComputerSupported} = req.body
         const newTestRoom = await TestRoom.create({
-            number,
-            building,
+            number: number.toLowerCase(),
+            building: building.toLowerCase(),
             maximum,
             isComputerSupported
         })
@@ -21,8 +21,9 @@ const getTestRoom = async(req, res, next) => {
     try{
         let tr = await TestRoom.findByPk(req.params.id);
         if (!tr){
+            const number = req.params.id.toLowerCase()
             tr = await TestRoom.findOne({
-                where: {number: req.params.id}
+                where: {number: number}
             })
         }
         if(!tr) res.status(404).send({message: 'Room not found'})
@@ -30,7 +31,7 @@ const getTestRoom = async(req, res, next) => {
         // Getting Every TestClass on this Testroom
         const tcls = await tr.getTestClasses()
         res.status(200).send({
-            ...tr,
+            ...tr.toJSON(),
             testClasses: tcls
         })
 
@@ -43,8 +44,9 @@ const updateTestRoom = async(req, res, next) => {
     try{
         let tr = await TestRoom.findByPk(req.params.id);
         if (!tr){
+            const number = req.params.id.toLowerCase()
             tr = await TestRoom.findOne({
-                where: {number: req.params.id}
+                where: {number: number}
             })
         }
         if(!tr) res.status(404).send({message: 'Room not found'});
@@ -65,8 +67,9 @@ const deleteTestRoom = async (req, res, next) => {
     try{
         let tr = await TestRoom.findByPk(req.params.id);
         if (!tr){
+            const number = req.params.id.toLowerCase()
             tr = await TestRoom.findOne({
-                where: {number: req.params.id}
+                where: {number: number}
             })
         }
         if(!tr) res.status(404).send({message: 'Room not found'});
@@ -84,8 +87,8 @@ const getTestRoomByQuery = async (req, res, next) => {
         const {q, computer} = req.query
         const trs = await TestRoom.findAll({ where: {
                 [Op.and]:[
-                    {number: {[Op.substring]: q}},
-                    {isComputerSupported: computer}
+                    {number: {[Op.substring]: q.toLowerCase()}},
+                    {isComputerSupported: computer ? true : false}
                 ]
             }
         })
@@ -108,8 +111,8 @@ const bulkCreateTestRooms = async(req, res, next) => {
         const testRooms = await Promise.all(data.map(async(element) => {
             try{
                 const newTestRoom = await TestRoom.create({
-                    number: element.number,
-                    building: element.building,
+                    number: element.number.toLowerCase(),
+                    building: element.building.toLowerCase(),
                     maximum: element.maximum,
                     isComputerSupported: element.isComputerSupported
                 })
@@ -121,7 +124,7 @@ const bulkCreateTestRooms = async(req, res, next) => {
         }))
 
         const newTestRooms = testRooms.filter(tr => tr !== undefined);
-        res.status.send({
+        res.status(200).send({
             message: 'upload success',
             success: newTestRooms.length,
             failure: testRooms.length - newTestRooms.length
@@ -136,5 +139,6 @@ module.exports = {
     getTestRoom,
     updateTestRoom,
     deleteTestRoom,
-    getTestRoomByQuery
+    getTestRoomByQuery,
+    bulkCreateTestRooms
 }

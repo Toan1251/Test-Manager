@@ -7,21 +7,21 @@ const router = express.Router();
 //user need have permission >= 1 to using this router service
 
 //Create a testroom
-router.post('/')
+router.post('/', testRoomController.createTestRoom)
 
 //Get a testroom Info with thier testclass: id will be Id or number of room
-router.get('/:id')
+router.get('/:id', testRoomController.getTestRoom)
 
 //Update a testroom
-router.put('/:id')
+router.put('/:id', testRoomController.updateTestRoom)
 
 //Delete a testroom
-router.delete('/:id')
+router.delete('/:id', testRoomController.deleteTestRoom)
 
 //Get testroom by query
-router.get('/')
+router.get('/', testRoomController.getTestRoomByQuery)
 
 //Create Multiple test room by excel
-router.post('/multiple', multerUpload.single('file'))
+router.post('/multiple', multerUpload.single('file'), testRoomController.bulkCreateTestRooms)
 
 module.exports = router;

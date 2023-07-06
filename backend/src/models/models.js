@@ -7,7 +7,7 @@ const sequelize = new Sequelize(DB.DB_NAME, DB.DB_USER, DB.DB_PASSWORD, {
     logging: false
 });
 
-const connection = async () => {
+const connection = async() => {
     try {
         await sequelize.authenticate();
         console.log('Connection has been established successfully.');
@@ -41,8 +41,8 @@ StudyClass.belongsTo(Subject);
 Lecture.hasMany(StudyClass);
 StudyClass.belongsTo(Lecture);
 
-Student.belongsToMany(StudyClass, {through: 'Students_StudyClasses'});
-StudyClass.belongsToMany(Student, {through: 'Students_StudyClasses'});
+Student.belongsToMany(StudyClass, { through: 'Students_StudyClasses' });
+StudyClass.belongsToMany(Student, { through: 'Students_StudyClasses' });
 
 StudyClass.hasMany(TestClass);
 TestClass.belongsTo(StudyClass);
@@ -50,15 +50,15 @@ TestClass.belongsTo(StudyClass);
 TestRoom.hasMany(TestClass);
 TestClass.belongsTo(TestRoom);
 
-Lecture.belongsToMany(TestClass, {through: 'Lectures_TestClasses'});
-TestClass.belongsToMany(Lecture, {through: 'Lectures_TestClasses'});
+Lecture.belongsToMany(TestClass, { through: 'Lectures_TestClasses' });
+TestClass.belongsToMany(Lecture, { through: 'Lectures_TestClasses' });
 
-Student.belongsToMany(TestClass, {through: Student_TestClass});
-TestClass.belongsToMany(Student, {through: Student_TestClass});
+Student.belongsToMany(TestClass, { through: Student_TestClass });
+TestClass.belongsToMany(Student, { through: Student_TestClass });
 
 
 // sync to database
-sequelize.sync({force: false})
+sequelize.sync({ force: false })
 
 module.exports = {
     Sequelize,

@@ -1,5 +1,5 @@
-const {User, Student, Lecture} = require('../models/models')
-const {xlsxToJSON} = require('../utils/utils')
+const { User, Student, Lecture } = require('../models/models')
+const { xlsxToJSON, checkValidData } = require('../utils/utils')
 const bcrypt = require('bcrypt')
 
 const logIn = (req, res) => {
@@ -11,11 +11,11 @@ const logOut = (req, res) => {
 }
 
 
-const register = async (req, res, next) => {
-    const {email, password, permissionLevel, info} = req.body
-    try{
-        const user = await User.findOne({where: {email: email}})
-        if(user) throw new Error("this email is already registered")
+const register = async(req, res, next) => {
+    const { email, password, permissionLevel, info } = req.body
+    try {
+        const user = await User.findOne({ where: { email: email } })
+        if (user) throw new Error("this email is already registered")
         else {
             const salt = await bcrypt.genSalt(10)
             const hashPassword = await bcrypt.hash(password, salt)
@@ -26,36 +26,40 @@ const register = async (req, res, next) => {
                 permissionLevel
             });
             let newPerson
-            if(permissionLevel === 0){
+            if (permissionLevel === 0) {
                 newPerson = await newUser.createStudent({
                     ...info
                 })
-            }else{
+            } else {
                 newPerson = await newUser.createLecture({
                     ...info
                 })
             }
-            res.status(201).send({newUser, newPerson})
+            const userInfo = await User.findByPk(newUser.id, { include: [Student, Lecture] })
+            res.status(201).send(userInfo)
         }
-    }catch(err){
+    } catch (err) {
         next(err)
     }
 }
 
-const bulkRegister = async (req, res, next) => {
+const bulkRegisterStudents = async(req, res, next) => {
     //User must have permissionlevel = 2 to using this method
     //read file to convert file to JSON key/value pair
     //excel file must have email,password,mssv,fullname,dateOfBirth,schoolyear,major column ordered
     //dateOfbirth must have format MM/DD/YYYY
 
     // if(req.user.permissionLevel != 2) res.statuc(403).send({message: 'not allowed'})
-    
+
     const header = ['email', 'password', 'mssv', 'fullname', 'dateOfBirth', 'schoolYear', 'major']
-    try{
+    try {
         const data = xlsxToJSON(req.file.path, header)
-        // Loop to create User and Student
-        const Students = await Promise.all(data.map(async (element) => {
-            try{
+        if (!checkValidData(data, header, ['email', 'pw', 20183640, 'name', new Date(), 63, 'soict'])) res.status(400).send({
+                message: 'incorrect format in data'
+            })
+            // Loop to create User and Student
+        const Students = await Promise.all(data.map(async(element) => {
+            try {
                 const salt = await bcrypt.genSalt(10)
                 const hashPassword = await bcrypt.hash(element.password, salt)
                 const newUser = await User.create({
@@ -65,26 +69,23 @@ const bulkRegister = async (req, res, next) => {
                 })
 
                 const newStudent = await Student.create({
-                    mssv: element.mssv,
-                    fullname: element.fullname,
-                    dateOfBirth: element.dateOfBirth,
-                    schoolYear: element.schoolYear,
-                    major: element.major,
+                    ...element,
                     UserId: newUser.id
                 })
                 return newStudent
-            }catch(err){
-                return undefined;
+            } catch (err) {
+                return 0;
             }
         }))
 
-        const newStudents = Students.filter(student => student !== undefined)
+        const newStudents = Students.filter(student => student !== 0)
         res.status(200).send({
             message: 'upload success',
             success: newStudents.length,
-            failed: data.length - newStudents.length
+            failed: data.length - newStudents.length,
+            newStudents
         })
-    }catch(err){
+    } catch (err) {
         next(err)
     }
 }
@@ -93,5 +94,5 @@ module.exports = {
     logIn,
     logOut,
     register,
-    bulkRegister
+    bulkRegisterStudents
 }

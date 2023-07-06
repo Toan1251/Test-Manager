@@ -3,3 +3,4 @@ node_modules/
 *.txt
 *.rest
 public/
+src/migrations/

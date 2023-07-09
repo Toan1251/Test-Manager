@@ -2,6 +2,19 @@ const { xlsxToJSON, checkValidData } = require('../utils/utils')
 const { TestRoom, TestClass } = require('../models/models')
 const Op = require('sequelize').Op
 
+const getTestRoomInstance = async(id, options = {}) => {
+    let instance = await TestRoom.findByPk(id, {...options });
+    if (!instance) {
+        const number = id.toLowerCase()
+        instance = await TestRoom.findOne({
+            where: { number: number },
+            ...options
+        })
+    }
+    if (!instance) return undefined
+    else return instance
+}
+
 const createTestRoom = async(req, res, next) => {
     try {
         const { number, building, maximum, isComputerSupported } = req.body
@@ -19,21 +32,9 @@ const createTestRoom = async(req, res, next) => {
 
 const getTestRoom = async(req, res, next) => {
     try {
-        let tr = await TestRoom.findByPk(req.params.id);
-        if (!tr) {
-            const number = req.params.id.toLowerCase()
-            tr = await TestRoom.findOne({
-                where: { number: number }
-            })
-        }
-        if (!tr) res.status(404).send({ message: 'Room not found' })
-
-        // Getting Every TestClass on this Testroom
-        const tcls = await tr.getTestClasses()
-        res.status(200).send({
-            ...tr.toJSON(),
-            testClasses: tcls
-        })
+        const testroom = await getTestRoomInstance(req.params.id, { include: [TestClass] })
+        if (!testroom) res.status(404).send({ message: 'Room not found' })
+        else res.status(200).send(testroom)
 
     } catch (err) {
         next(err)
@@ -42,22 +43,12 @@ const getTestRoom = async(req, res, next) => {
 
 const updateTestRoom = async(req, res, next) => {
     try {
-        let tr = await TestRoom.findByPk(req.params.id);
-        if (!tr) {
-            const number = req.params.id.toLowerCase()
-            tr = await TestRoom.findOne({
-                where: { number: number }
-            })
-        }
+        const tr = await getTestRoomInstance(req.params.id, { include: [TestClass] })
         if (!tr) res.status(404).send({ message: 'Room not found' });
 
-        const { building, maximum, isComputerSupported } = req.body
-        tr.building = building ? building : tr.building
-        tr.maximum = maximum ? maximum : tr.maximum
-        tr.isComputerSupported = isComputerSupported ? isComputerSupported : tr.isComputerSupported
-
-        await tr.save();
-        res.status(200).send(tr)
+        const testroom = Object.assign(tr, req.body)
+        await testroom.save();
+        res.status(200).send(testroom)
     } catch (err) {
         next(err)
     }
@@ -65,13 +56,7 @@ const updateTestRoom = async(req, res, next) => {
 
 const deleteTestRoom = async(req, res, next) => {
     try {
-        let tr = await TestRoom.findByPk(req.params.id);
-        if (!tr) {
-            const number = req.params.id.toLowerCase()
-            tr = await TestRoom.findOne({
-                where: { number: number }
-            })
-        }
+        const tr = await getTestRoomInstance(req.params.id, { include: [TestClass] })
         if (!tr) res.status(404).send({ message: 'Room not found' });
         else {
             await tr.destroy()
@@ -89,7 +74,7 @@ const getTestRoomByQuery = async(req, res, next) => {
             where: {
                 [Op.and]: [{
                         number: {
-                            [Op.substring]: q ? q.toLowerCase() : ''
+                            [Op.substring]: q || ''
                         }
                     },
                     { isComputerSupported: computer ? true : false }
@@ -148,5 +133,6 @@ module.exports = {
     updateTestRoom,
     deleteTestRoom,
     getTestRoomByQuery,
-    bulkCreateTestRooms
+    bulkCreateTestRooms,
+    getTestRoomInstance
 }

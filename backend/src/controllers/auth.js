@@ -1,5 +1,5 @@
 const { User, Student, Lecture } = require('../models/models')
-const { xlsxToJSON, checkValidData } = require('../utils/utils')
+const { xlsxToJSON, checkValidData, generateCode } = require('../utils/utils')
 const bcrypt = require('bcrypt')
 
 const logIn = (req, res) => {
@@ -27,8 +27,10 @@ const register = async(req, res, next) => {
             });
             let newPerson
             if (permissionLevel === 0) {
+                const min = (new Date()).getFullYear() * 1000
                 newPerson = await newUser.createStudent({
-                    ...info
+                    ...info,
+                    mssv: info.mssv || generateCode(min, min + 1e4)
                 })
             } else {
                 newPerson = await newUser.createLecture({

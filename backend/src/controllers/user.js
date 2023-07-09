@@ -1,5 +1,19 @@
 const { User, Student, Lecture } = require('../models/models')
 
+const getStudentInstance = async(id, options = {}) => {
+    try {
+        let instance = await Student.findByPk(id, {...options });
+        if (!instance) instance = await Student.findOne({
+            where: { mssv: id },
+            ...options
+        })
+        if (!instance) return undefined;
+        else return instance
+    } catch (err) {
+        return undefined
+    }
+}
+
 const getUser = async(req, res, next) => {
     try {
         const user = await User.findByPk(req.params.id, { include: [Student, Lecture] });
@@ -12,18 +26,16 @@ const getUser = async(req, res, next) => {
 
 const getStudent = async(req, res, next) => {
     try {
-        let std = await Student.findByPk(req.params.id, { include: [User] });
-        if (!std) std = await Student.findOne({
-            where: { mssv: req.params.id },
-            include: [User]
-        })
-        if (!std) res.status(404).send({ message: 'Student not found' })
-        res.status(200).send(std);
+        const student = await getStudentInstance(req.params.id, { include: { all: true } })
+        if (!student) res.status(404).send({ message: 'Student not found' })
+        res.status(200).send(student);
     } catch (err) {
         next(err)
     }
 }
 
 module.exports = {
-    getUser
+    getUser,
+    getStudent,
+    getStudentInstance
 }

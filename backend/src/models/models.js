@@ -69,5 +69,6 @@ module.exports = {
     StudyClass,
     TestClass,
     Subject,
-    TestRoom
+    TestRoom,
+    Student_TestClass
 };

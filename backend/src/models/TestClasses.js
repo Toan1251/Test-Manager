@@ -17,14 +17,11 @@ module.exports = (sequelize) => {
             allowNull: false,
         },
         examTime: {
-            type: DataTypes.INTEGER,  //1: 6h45-9h, 2:9h15 - 11h30, ...
+            type: DataTypes.INTEGER, //1: 7h-8h, 2:8h10-9h10
             allowNull: false,
         },
-        subExamTime: {
-            type: DataTypes.INTEGER, // Sub exam time when exam will be split because limitTime is short
-        },
         limitTime: {
-            type: DataTypes.INTEGER,  // Minute
+            type: DataTypes.INTEGER, // Minute
             allowNull: false,
         }
     })

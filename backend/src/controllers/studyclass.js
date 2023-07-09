@@ -1,22 +1,49 @@
 const Op = require('sequelize').Op
-const { xlsxToJSON, checkValidData } = require('../utils/utils')
+const { xlsxToJSON, checkValidData, generateCode } = require('../utils/utils')
 const { StudyClass, Lecture, Subject, Student, User } = require('../models/models')
+const { getSubjectInstance } = require('./subject')
+const { getStudentInstance } = require('./user')
+
+const getInstance = async(id, options = {}) => {
+    try {
+        let instance = await StudyClass.findByPk(id, {...options });
+        if (!instance) instance = await StudyClass.findOne({
+            where: { code: id },
+            ...options
+        })
+        if (!instance) return undefined;
+        else return instance
+    } catch (err) {
+        return undefined
+    }
+}
 
 const createStudyClass = async(req, res, next) => {
     try {
-        const { subjectId, lectureId, code, semester } = req.body
-        const subject = await Subject.findByPk(subjectId);
+        const { subjectId, lectureId, code, semester, studentIds } = req.body
+        const subject = await getSubjectInstance(subjectId);
         if (!subject) res.status(404).send({ message: "subject isn't exist" });
         const lecture = await Lecture.findByPk(lectureId);
         if (!lecture) res.status(404).send({ message: "lecture isn't exist" });
 
         const newStudyClass = await subject.createStudyClass({
-            code,
+            code: code || generateCode(1e5, 1e6),
             semester,
             LectureId: lecture.id
         })
 
-        const returnData = await StudyClass.findByPk(newStudyClass.id, { include: [Subject, Lecture] })
+        const students = await Promise.all(studentIds.map(async(id) => {
+            try {
+                return await getStudentInstance(id);
+            } catch (err) {
+                return undefined;
+            }
+        }))
+
+        const add = students.filter(s => s !== undefined);
+        await newStudyClass.addStudents(add)
+
+        const returnData = await StudyClass.findByPk(newStudyClass.id, { include: [Subject, Lecture, Student] })
 
         res.status(200).send(returnData)
     } catch (err) {
@@ -26,11 +53,9 @@ const createStudyClass = async(req, res, next) => {
 
 const getStudyClass = async(req, res, next) => {
     try {
-        let sc = await StudyClass.findByPk(req.params.id, { include: [Subject, Lecture] });
-        if (!sc) sc = await StudyClass.findOne({ where: { code: req.params.id }, include: [Subject, Lecture] })
-        if (!sc) res.status(404).send({ message: 'Study Class not found' })
-
-        res.status(200).send(sc);
+        const studyclass = await getInstance(req.params.id, { include: { all: true } })
+        if (!studyclass) res.status(404).send({ message: 'Study Class not found' })
+        else res.status(200).send(studyclass);
     } catch (err) {
         next(err)
     }
@@ -38,15 +63,12 @@ const getStudyClass = async(req, res, next) => {
 
 const updateStudyClass = async(req, res, next) => {
     try {
-        let sc = await StudyClass.findByPk(req.params.id);
-        if (!sc) sc = await StudyClass.findOne({ where: { code: req.params.id } })
-        if (!sc) res.status(404).send({ message: 'Study Class not found' })
+        const studyclass = await getInstance(req.params.id, { include: [Subject, Lecture] })
+        if (!studyclass) res.status(404).send({ message: 'Study Class not found' })
+        else res.status(200).send(studyclass);
 
-        const { lectureId, semester } = req.body
-        sc.LectureId = lectureId ? lectureId : sc.LectureId;
-        sc.semester = semester ? semester : sc.semester;
-
-        const update = await StudyClass.findByPk(sc.id, { include: [Subject, Lecture] })
+        const update = Object.assign(studyclass, req.body)
+        await update.save()
         res.status(200).send(update)
     } catch (err) {
         next(err)
@@ -55,31 +77,32 @@ const updateStudyClass = async(req, res, next) => {
 
 const deleteStudyClass = async(req, res, next) => {
     try {
-        let sc = await StudyClass.findByPk(req.params.id);
-        if (!sc) sc = await StudyClass.findOne({ where: { code: req.params.id } })
-        if (!sc) res.status(404).send({ message: 'Study Class not found' })
-
-        await sc.destroy();
-        res.status(200).send({ message: 'Study Class was deleted successfully' })
+        const studyclass = await getInstance(req.params.id)
+        if (!studyclass) res.status(404).send({ message: 'Study Class not found' })
+        else {
+            await studyclass.destroy();
+            res.status(200).send({ message: 'Study Class was deleted successfully' })
+        }
     } catch (err) {
         next(err)
     }
 }
 
+//Adding find by Subject Code and Subject name
 const findStudyClasses = async(req, res, next) => {
     try {
-        const { code, semester } = req.query
+        const { q, semester } = req.query
         const scls = await StudyClass.findAll({
             where: {
                 [Op.and]: [{
                         code: {
-                            [Op.substring]: code ? code.toLowerCase() : ''
+                            [Op.substring]: q ? q.toLowerCase() : ''
                         }
                     },
                     { semester: semester }
                 ]
             },
-            include: [Lecture, Subject]
+            include: [Subject, Lecture]
         })
         res.status(200).send(scls)
     } catch (err) {
@@ -89,9 +112,8 @@ const findStudyClasses = async(req, res, next) => {
 
 const addStudentToStudyClass = async(req, res, next) => {
     try {
-        let sc = await StudyClass.findByPk(req.params.id);
-        if (!sc) sc = await StudyClass.findOne({ where: { code: req.params.id } })
-        if (!sc) res.status(404).send({ message: 'Study Class not found' })
+        const sc = await getInstance(req.params.id)
+        if (!sc) return res.status(404).send({ message: 'Study Class not found' })
 
         const { studentIds } = req.body;
         const students = await Promise.all(studentIds.map(async(id) => {
@@ -169,9 +191,8 @@ const addStudentToStudyClassByFile = async(req, res, next) => {
     // if(req.user.permissionLevel < 1) res.statuc(403).send({message: 'not allowed'})
     const header = ['fullname', 'dateOfBirth', 'mssv', 'email']
     try {
-        let sc = await StudyClass.findByPk(req.params.id);
-        if (!sc) sc = await StudyClass.findOne({ where: { code: req.params.id } })
-        if (!sc) res.status(404).send({ message: 'Study Class not found' })
+        const sc = await getInstance(req.params.id)
+        if (!sc) return res.status(404).send({ message: 'Study Class not found' })
 
         const data = xlsxToJSON(req.file.path, header);
         if (!checkValidData(data, header, ['name', new Date(), 20183640, 'email'])) {
@@ -197,11 +218,9 @@ const addStudentToStudyClassByFile = async(req, res, next) => {
             student_number: stdList.length,
             students: stdList
         })
-
     } catch (err) {
         next(err)
     }
-
 }
 
 module.exports = {
@@ -212,5 +231,6 @@ module.exports = {
     findStudyClasses,
     bulkCreateStudyClass,
     addStudentToStudyClass,
-    addStudentToStudyClassByFile
+    addStudentToStudyClassByFile,
+    getInstance
 }

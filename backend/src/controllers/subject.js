@@ -1,15 +1,25 @@
-const { xlsxToJSON, checkValidData } = require('../utils/utils')
-const Subject = require('../models/models').Subject
+const { xlsxToJSON, checkValidData, generateCode } = require('../utils/utils')
+const { Subject, StudyClass } = require('../models/models')
 const Op = require('sequelize').Op
+
+const getSubjectInstance = async(id, options = {}) => {
+    try {
+        let instance = await Subject.findByPk(id, {...options })
+        if (!instance) instance = await Subject.findOne({
+            where: { code: id },
+            ...options
+        })
+
+        if (!instance) return undefined;
+        else return instance
+    } catch (err) {
+        return undefined
+    }
+}
 
 const getSubject = async(req, res, next) => {
     try {
-        let subject = await Subject.findByPk(req.params.id);
-        if (!subject) {
-            subject = await Subject.findOne({
-                where: { code: req.params.id }
-            })
-        }
+        const subject = await getSubjectInstance(req.params.id, { include: [StudyClass] })
         if (!subject) res.status(404).send({ message: 'not found' });
 
         res.status(200).send(subject)
@@ -22,7 +32,7 @@ const createSubject = async(req, res, next) => {
     try {
         const { code, name, institute } = req.body;
         const newSubject = await Subject.create({
-            code,
+            code: code || generateCode(1e3, 1e4, { isString: true }),
             name,
             institute
         })
@@ -35,20 +45,13 @@ const createSubject = async(req, res, next) => {
 
 const updateSubject = async(req, res, next) => {
     try {
-        let subject = await Subject.findByPk(req.params.id);
-        if (!subject) {
-            subject = await Subject.findOne({
-                where: { code: req.params.id }
-            })
-        }
+        const subject = await getSubjectInstance(req.params.id)
         if (!subject) res.status(404).send({ message: 'not found' });
 
-        const { name, institute } = req.body;
-        subject.name = name ? name : subject.name;
-        subject.institute = institute ? institute : subject.institute;
-        await subject.save();
+        const updateSubject = Object.assign(subject, req.body)
+        await updateSubject.save()
 
-        res.status(200).send(subject)
+        res.status(200).send(updateSubject)
     } catch (err) {
         next(err)
     }
@@ -56,12 +59,7 @@ const updateSubject = async(req, res, next) => {
 
 const deleteSubject = async(req, res, next) => {
     try {
-        let subject = await Subject.findByPk(req.params.id);
-        if (!subject) {
-            subject = await Subject.findOne({
-                where: { code: req.params.id }
-            })
-        }
+        const subject = await getSubjectInstance(req.params.id)
         if (!subject) res.status(404).send({ message: 'not found' });
         else {
             await subject.destroy();
@@ -92,7 +90,7 @@ const getSubjectsByQuery = async(req, res, next) => {
             }
         })
 
-        res.status(200).send({ Subjects })
+        res.status(200).send(Subjects)
     } catch (err) {
         next(err)
     }
@@ -141,5 +139,6 @@ module.exports = {
     updateSubject,
     deleteSubject,
     getSubjectsByQuery,
-    bulkCreateSubjects
+    bulkCreateSubjects,
+    getSubjectInstance
 }

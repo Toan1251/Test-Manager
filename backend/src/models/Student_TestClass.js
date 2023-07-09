@@ -2,19 +2,8 @@ const DataTypes = require("sequelize").DataTypes;
 
 module.exports = (sequelize) => {
     const Student_TestClass = sequelize.define('Students_TestClass', {
-        StudentId: {
-            type: DataTypes.UUID,
-            references: {
-                model: 'Students',
-                key: 'id'
-            }
-        },
-        TestClassId: {
-            type: DataTypes.UUID,
-            references: {
-                model: 'TestClasses',
-                key: 'id'
-            }
+        subTestClass: {
+            type: DataTypes.STRING
         },
         isSubmitted: {
             type: DataTypes.BOOLEAN,

@@ -22,9 +22,9 @@ const createStudyClass = async(req, res, next) => {
     try {
         const { subjectId, lectureId, code, semester, studentIds } = req.body
         const subject = await getSubjectInstance(subjectId);
-        if (!subject) res.status(404).send({ message: "subject isn't exist" });
+        if (!subject) return res.status(404).send({ message: "subject isn't exist" });
         const lecture = await Lecture.findByPk(lectureId);
-        if (!lecture) res.status(404).send({ message: "lecture isn't exist" });
+        if (!lecture) return res.status(404).send({ message: "lecture isn't exist" });
 
         const newStudyClass = await subject.createStudyClass({
             code: code || generateCode(1e5, 1e6),
@@ -32,20 +32,25 @@ const createStudyClass = async(req, res, next) => {
             LectureId: lecture.id
         })
 
-        const students = await Promise.all(studentIds.map(async(id) => {
-            try {
-                return await getStudentInstance(id);
-            } catch (err) {
-                return undefined;
+        const students = await Student.findAll({
+            where: {
+                [Op.or]: [{
+                        mssv: {
+                            [Op.or]: studentIds
+                        }
+                    },
+                    {
+                        id: {
+                            [Op.or]: studentIds
+                        }
+                    }
+                ]
             }
-        }))
+        })
 
-        const add = students.filter(s => s !== undefined);
-        await newStudyClass.addStudents(add)
-
+        await newStudyClass.addStudents(students)
         const returnData = await StudyClass.findByPk(newStudyClass.id, { include: [Subject, Lecture, Student] })
-
-        res.status(200).send(returnData)
+        return res.status(200).send(returnData)
     } catch (err) {
         next(err);
     }
@@ -63,13 +68,13 @@ const getStudyClass = async(req, res, next) => {
 
 const updateStudyClass = async(req, res, next) => {
     try {
-        const studyclass = await getInstance(req.params.id, { include: [Subject, Lecture] })
+        const studyclass = await getInstance(req.params.id)
         if (!studyclass) res.status(404).send({ message: 'Study Class not found' })
-        else res.status(200).send(studyclass);
 
         const update = Object.assign(studyclass, req.body)
         await update.save()
-        res.status(200).send(update)
+        const studyClass = await StudyClass.findByPk(update.id, { include: [Subject, Lecture] })
+        return res.status(200).send(studyClass)
     } catch (err) {
         next(err)
     }
@@ -104,7 +109,7 @@ const findStudyClasses = async(req, res, next) => {
             },
             include: [Subject, Lecture]
         })
-        res.status(200).send(scls)
+        return res.status(200).send(scls)
     } catch (err) {
         next(err)
     }
@@ -116,24 +121,25 @@ const addStudentToStudyClass = async(req, res, next) => {
         if (!sc) return res.status(404).send({ message: 'Study Class not found' })
 
         const { studentIds } = req.body;
-        const students = await Promise.all(studentIds.map(async(id) => {
-            try {
-                let std = await Student.findByPk(id);
-                if (!std) std = await Student.findOne({ where: { mssv: id } })
-                return std
-            } catch (err) {
-                return undefined;
+        const students = await Student.findAll({
+            where: {
+                [Op.or]: [{
+                        mssv: {
+                            [Op.or]: studentIds
+                        }
+                    },
+                    {
+                        id: {
+                            [Op.or]: studentIds
+                        }
+                    }
+                ]
             }
-        }))
-
-        const add = students.filter(s => s !== undefined)
-        await sc.addStudents(add);
-        const stdList = await sc.getStudents();
-        res.status(200).send({
-            studyclass: sc,
-            student_number: stdList.length,
-            students: stdList
         })
+
+        await sc.addStudents(students);
+        const studyClass = await StudyClass.findByPk(sc.id, { include: [Subject, Student, Lecture] });
+        res.status(200).send(studyClass)
 
     } catch (err) {
         next(err)

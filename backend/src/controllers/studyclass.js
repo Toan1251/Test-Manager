@@ -36,12 +36,12 @@ const createStudyClass = async(req, res, next) => {
             where: {
                 [Op.or]: [{
                         mssv: {
-                            [Op.or]: studentIds
+                            [Op.or]: [...studentIds, null]
                         }
                     },
                     {
                         id: {
-                            [Op.or]: studentIds
+                            [Op.or]: [...studentIds, null]
                         }
                     }
                 ]
@@ -125,12 +125,12 @@ const addStudentToStudyClass = async(req, res, next) => {
             where: {
                 [Op.or]: [{
                         mssv: {
-                            [Op.or]: studentIds
+                            [Op.or]: [...studentIds, null]
                         }
                     },
                     {
                         id: {
-                            [Op.or]: studentIds
+                            [Op.or]: [...studentIds, null]
                         }
                     }
                 ]
@@ -205,22 +205,21 @@ const addStudentToStudyClassByFile = async(req, res, next) => {
             res.status(400).send({ message: 'incorrect format data' })
         }
 
-        const students = await Promise.all(data.map(async(element) => {
-            try {
-                const student = await Student.findOne({ where: { mssv: element.mssv } });
-                return student
-            } catch (err) {
-                return undefined;
-            }
-        }))
+        const studentIds = data.map((element) => { return element.mssv })
 
-        const add = students.filter(s => s !== undefined)
-        await sc.addStudents(add);
+        const students = await Student.findAll({
+            where: {
+                mssv: {
+                    [Op.or]: [...studentIds, null] }
+            }
+        })
+
+        await sc.addStudents(students);
         const stdList = await sc.getStudents();
         res.status(200).send({
             message: 'upload success',
-            success: add.length,
-            failed: students.length - add.length,
+            success: students.length,
+            failed: studentIds.length - students.length,
             student_number: stdList.length,
             students: stdList
         })

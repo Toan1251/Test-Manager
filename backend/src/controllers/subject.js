@@ -116,7 +116,7 @@ const bulkCreateSubjects = async(req, res, next) => {
                 })
                 return newSubject
             } catch (err) {
-                return
+                return undefined
             }
         }))
 

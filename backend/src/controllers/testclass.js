@@ -35,7 +35,6 @@ const isOverlap = async(instance, date, examTime) => {
     return !testClasses.length == 0
 }
 
-
 const createTestClass = async(req, res, next) => {
     //Date will be convert to be JSON in frontend before send on request
     //find testroom 
@@ -61,11 +60,11 @@ const createTestClass = async(req, res, next) => {
         const max = testroom.maximum;
         if (studentIds.length > max * maxSubTestClass) return res.status(400).send({ message: 'Too many students in one test class' })
 
-        //Get student list
+        //Get student list, make sure student is in studyclass we need create test class
         const students = await Student.findAll({
             where: {
                 mssv: {
-                    [Op.or]: studentIds
+                    [Op.or]: [...studentIds, 0]
                 }
             }
         })
@@ -93,7 +92,7 @@ const createTestClass = async(req, res, next) => {
             }
         }
 
-        const testClass = await getInstance(newTestClass.id, { include: { all: true, nested: true } })
+        const testClass = await getInstance(newTestClass.id, { include: [StudyClass, Student] })
         return res.status(200).send(testClass)
     } catch (err) {
         next(err)
@@ -335,7 +334,7 @@ const setProctorToTestClass = async(req, res, next) => {
         const proctors = await Lecture.findAll({
             where: {
                 id: {
-                    [Op.or]: proctorIds
+                    [Op.or]: [...proctorIds, null]
                 }
             }
         })
@@ -361,6 +360,7 @@ const setProctorToTestClass = async(req, res, next) => {
     }
 }
 
+//-> not test
 const addStudentsToTestClassByFile = async(req, res, next) => {
     try {
         //User must have permissionlevel >= 1 to using this method
@@ -435,6 +435,7 @@ const addStudentsToTestClassByFile = async(req, res, next) => {
     }
 }
 
+//-> not test
 const addStudentsToTestClassesByFile = async(req, res, next) => {
     //User must have permissionlevel >= 1 to using this method
     //read file to convert file to JSON key/value pair
@@ -511,9 +512,6 @@ const addStudentsToTestClassesByFile = async(req, res, next) => {
     }
 }
 
-const bulkCreateTestClass = async(req, res, next) => {
-
-}
 
 module.exports = {
     createTestClass,
@@ -525,5 +523,4 @@ module.exports = {
     setProctorToTestClass,
     addStudentsToTestClassByFile,
     addStudentsToTestClassesByFile,
-    bulkCreateTestClass
 }

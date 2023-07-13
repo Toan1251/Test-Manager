@@ -27,8 +27,18 @@ const getUser = async(req, res, next) => {
 const getStudent = async(req, res, next) => {
     try {
         const student = await getStudentInstance(req.params.id, { include: { all: true } })
-        if (!student) res.status(404).send({ message: 'Student not found' })
-        res.status(200).send(student);
+        if (!student) return res.status(404).send({ message: 'Student not found' })
+        return res.status(200).send(student);
+    } catch (err) {
+        next(err)
+    }
+}
+
+const getLecture = async(req, res, next) => {
+    try {
+        const lecture = await Lecture.findByPk(req.params.id);
+        if (!lecture) return res.status(404).send({ message: 'Lecture not found' })
+        return res.status(200).send(lecture)
     } catch (err) {
         next(err)
     }
@@ -37,5 +47,6 @@ const getStudent = async(req, res, next) => {
 module.exports = {
     getUser,
     getStudent,
-    getStudentInstance
+    getStudentInstance,
+    getLecture
 }

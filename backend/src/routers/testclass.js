@@ -25,9 +25,6 @@ router.post('/add/students/:id', testClassController.addStudentToTestClass)
 //add Lectures tobe proctor
 router.post('/set/lectures/:id', testClassController.setProctorToTestClass)
 
-//create multiple empty test class by file
-router.post('/multiple', multerUpload.single('file'), testClassController.bulkCreateTestClass)
-
 //Add students into test class by file
 router.post('/add/students/multiple/:id', multerUpload.single('file'), testClassController.addStudentsToTestClassByFile)
 
